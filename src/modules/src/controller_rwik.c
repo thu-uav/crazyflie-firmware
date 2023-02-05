@@ -64,6 +64,31 @@ static float r_pitch;
 static float r_yaw;
 static float accelz;
 
+static float cmd_z_acc;
+
+static float angVel_x;
+static float angVel_y;
+static float angVel_z;
+
+static float state_x;
+static float state_y;
+static float state_z;
+
+
+static float quat_x;
+static float quat_y;
+static float quat_z;
+static float quat_w;
+
+static float ref_x;
+static float ref_y;
+static float ref_z;
+
+static float rot_des_x;
+static float rot_des_y;
+static float rot_des_z;
+
+
 void controllerRwikReset(void)
 {
   i_error_x = 0;
@@ -174,7 +199,9 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // Current thrust [F]
   // current_thrust = vdot(target_thrust, z_axis);
   /////////////////////////////////////////////////////////////////////////////////
-  current_thrust = g_vehicleMass *setpoint->acceleration.z;
+  current_thrust = g_vehicleMass * setpoint->acceleration.z;
+
+  cmd_z_acc = setpoint->acceleration.z;
 
   // Calculate axis [zB_des]
 
@@ -186,17 +213,44 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   float stateAttitudeRatePitch = -radians(sensors->gyro.y);
   float stateAttitudeRateYaw = radians(sensors->gyro.z);
 
+  // ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  // ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
+  // ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
   ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
   ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
   ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
   if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
     err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
     err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
   }
   prev_omega_roll = stateAttitudeRateRoll;
   prev_omega_pitch = stateAttitudeRatePitch;
-  prev_setpoint_omega_roll = radians(setpoint->attitudeRate.roll);
-  prev_setpoint_omega_pitch = radians(setpoint->attitudeRate.pitch);
+  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
+  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
+
+  // In degrees
+  angVel_x = setpoint->attitudeRate.roll;
+  angVel_y = setpoint->attitudeRate.pitch;
+  angVel_z = setpoint->attitudeRate.yaw;
+
+  quat_x=state->attitudeQuaternion.x;
+  quat_y=state->attitudeQuaternion.y;
+  quat_z=state->attitudeQuaternion.z;
+  quat_w=state->attitudeQuaternion.w;
+
+  state_x=state->position.x;
+  state_y=state->position.y;
+  state_z=state->position.z;
+
+  ref_x = setpoint->position.x;
+  ref_y = setpoint->position.y;
+  ref_z = setpoint->position.z;
+
+  rot_des_z = setpoint->velocity.x;
+  rot_des_y = setpoint->velocity.y;
+  rot_des_x = setpoint->velocity.z;
 
   // PD control for angular velocities
 
@@ -211,6 +265,7 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   } else {
     control->thrust = massThrust * current_thrust;
   }
+  
   // control->thrust = setpoint->acceleration.z;
   cmd_thrust = control->thrust;
   r_roll = radians(sensors->gyro.x);
@@ -260,4 +315,28 @@ LOG_ADD(LOG_FLOAT, accelz, &accelz)
 LOG_ADD(LOG_FLOAT, zdx, &z_axis_desired.x)
 LOG_ADD(LOG_FLOAT, zdy, &z_axis_desired.y)
 LOG_ADD(LOG_FLOAT, zdz, &z_axis_desired.z)
+
+LOG_ADD(LOG_FLOAT, angVel_x, &angVel_x)
+LOG_ADD(LOG_FLOAT, angVel_y, &angVel_y)
+LOG_ADD(LOG_FLOAT, angVel_z, &angVel_z)
+
+LOG_ADD(LOG_FLOAT, state_x, &state_x)
+LOG_ADD(LOG_FLOAT, state_y, &state_y)
+LOG_ADD(LOG_FLOAT, state_z, &state_z)
+
+LOG_ADD(LOG_FLOAT, quat_x, &quat_x)
+LOG_ADD(LOG_FLOAT, quat_y, &quat_y)
+LOG_ADD(LOG_FLOAT, quat_z, &quat_z)
+LOG_ADD(LOG_FLOAT, quat_w, &quat_w)
+
+LOG_ADD(LOG_FLOAT, ref_x, &ref_x)
+LOG_ADD(LOG_FLOAT, ref_y, &ref_y)
+LOG_ADD(LOG_FLOAT, ref_z, &ref_z)
+
+// LOG_ADD(LOG_FLOAT, rot_des_z, &rot_des_z)
+// LOG_ADD(LOG_FLOAT, rot_des_y, &rot_des_y)
+// LOG_ADD(LOG_FLOAT, rot_des_x, &rot_des_x)
+
+LOG_ADD(LOG_FLOAT, cmd_z_acc, &cmd_z_acc)
+
 LOG_GROUP_STOP(ctrlRwik)
