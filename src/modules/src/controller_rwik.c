@@ -31,7 +31,7 @@ static float kw_xy = 20000; // D
 // Yaw
 // static float kR_z = 0.0; // P
 static float kw_z = 12000; // D
-// static float ki_m_z = 0.0; // I
+static float ki_w_z = 0.0; // Integral term for the angular velocity controller.
 // static float i_range_m_z  = 0.0;
 
 // roll and pitch angular velocity
@@ -119,6 +119,7 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // struct vec target_thrust;
   // struct vec z_axis;
   float current_thrust;
+  float ew_z_integral;
   // struct vec x_axis_desired;
   // struct vec y_axis_desired;
   // struct vec x_c_des;
@@ -199,37 +200,11 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // Current thrust [F]
   // current_thrust = vdot(target_thrust, z_axis);
   /////////////////////////////////////////////////////////////////////////////////
-  current_thrust = g_vehicleMass * setpoint->acceleration.z;
 
-  cmd_z_acc = setpoint->acceleration.z;
 
   // Calculate axis [zB_des]
 
-  // [ew]
-  float err_d_roll = 0;
-  float err_d_pitch = 0;
-
-  float stateAttitudeRateRoll = radians(sensors->gyro.x);
-  float stateAttitudeRatePitch = -radians(sensors->gyro.y);
-  float stateAttitudeRateYaw = radians(sensors->gyro.z);
-
-  // ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
-  // ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
-  // ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
-
-  ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
-  ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
-  ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
-
-  if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
-    err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
-    err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
-  }
-  prev_omega_roll = stateAttitudeRateRoll;
-  prev_omega_pitch = stateAttitudeRatePitch;
-  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
-  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
-
+  // setting LOGGING param values
   // In degrees
   angVel_x = setpoint->attitudeRate.roll;
   angVel_y = setpoint->attitudeRate.pitch;
@@ -251,15 +226,48 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   rot_des_z = setpoint->velocity.x;
   rot_des_y = setpoint->velocity.y;
   rot_des_x = setpoint->velocity.z;
+  //
 
+
+
+  // Thrust calculation from angular acceleration (Z body frame direction) input
+  current_thrust = g_vehicleMass * setpoint->acceleration.z;
+  cmd_z_acc = setpoint->acceleration.z;
+  //
+
+  // Angular velocity Controller
+  // float err_d_roll = 0;
+  // float err_d_pitch = 0;
+
+  float stateAttitudeRateRoll = radians(sensors->gyro.x);
+  float stateAttitudeRatePitch = -radians(sensors->gyro.y);
+  float stateAttitudeRateYaw = radians(sensors->gyro.z);
+
+  // ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  // ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
+  // ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
+  ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
+  ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
+  ew_z_integral = ew.z*dt;
+  // if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
+  //   err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
+  //   err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
+  // }
+  prev_omega_roll = stateAttitudeRateRoll;
+  prev_omega_pitch = stateAttitudeRatePitch;
+  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
+  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
   // PD control for angular velocities
 
   // ----- remove D control
-  M.x = kw_xy * ew.x + 0.0f*kd_omega_rp * err_d_roll;
-  M.y = kw_xy * ew.y + 0.0f*kd_omega_rp * err_d_pitch;
-  M.z = kw_z  * ew.z;
+  M.x = kw_xy * ew.x; 
+  M.y = kw_xy * ew.y;
+  M.z = kw_z  * ew.z + ki_w_z*ew_z_integral;
 
-  // Output
+  // Sending values to the motor
   if (setpoint->mode.z == modeDisable) {
     control->thrust = setpoint->thrust;
   } else {
@@ -301,6 +309,8 @@ PARAM_ADD(PARAM_FLOAT, massThrust, &massThrust)
 PARAM_ADD(PARAM_FLOAT, kw_xy, &kw_xy)
 PARAM_ADD(PARAM_FLOAT, kw_z, &kw_z)
 PARAM_ADD(PARAM_FLOAT, kd_omega_rp, &kd_omega_rp)
+PARAM_ADD(PARAM_FLOAT, ki_w_z, &ki_w_z)
+
 PARAM_GROUP_STOP(ctrlRwik)
 
 LOG_GROUP_START(ctrlRwik)
