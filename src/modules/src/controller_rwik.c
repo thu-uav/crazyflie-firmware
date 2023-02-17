@@ -132,6 +132,7 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // struct vec target_thrust;
   // struct vec z_axis;
   float current_thrust;
+  float ew_z_integral;
   // struct vec x_axis_desired;
   // struct vec y_axis_desired;
   // struct vec x_c_des;
