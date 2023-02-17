@@ -31,7 +31,13 @@ static float kw_xy = 20000; // D
 // Yaw
 // static float kR_z = 0.0; // P
 static float kw_z = 12000; // D
-// static float ki_m_z = 0.0; // I
+static float ki_w_z = 500; // Integral term for the angular velocity controller.
+static float ki_w_x = 250;
+static float ki_w_y = 250;
+
+static float i_range_roll = 1000;
+static float i_range_pitch = 1000;
+static float i_range_yaw = 1000;
 // static float i_range_m_z  = 0.0;
 
 // roll and pitch angular velocity
@@ -42,6 +48,10 @@ static float kd_omega_rp = 200; // D
 static float i_error_x = 0;
 static float i_error_y = 0;
 static float i_error_z = 0;
+
+static float i_error_omega_roll = 0;
+static float i_error_omega_pitch = 0;
+static float i_error_omega_yaw = 0;
 
 static float prev_omega_roll;
 static float prev_omega_pitch;
@@ -94,6 +104,9 @@ void controllerRwikReset(void)
   i_error_x = 0;
   i_error_y = 0;
   i_error_z = 0;
+  i_error_omega_roll = 0;
+  i_error_omega_pitch = 0;
+  i_error_omega_yaw = 0;
   // i_error_m_x = 0;
   // i_error_m_y = 0;
   // i_error_m_z = 0;
@@ -199,37 +212,11 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // Current thrust [F]
   // current_thrust = vdot(target_thrust, z_axis);
   /////////////////////////////////////////////////////////////////////////////////
-  current_thrust = g_vehicleMass * setpoint->acceleration.z;
 
-  cmd_z_acc = setpoint->acceleration.z;
 
   // Calculate axis [zB_des]
 
-  // [ew]
-  float err_d_roll = 0;
-  float err_d_pitch = 0;
-
-  float stateAttitudeRateRoll = radians(sensors->gyro.x);
-  float stateAttitudeRatePitch = -radians(sensors->gyro.y);
-  float stateAttitudeRateYaw = radians(sensors->gyro.z);
-
-  // ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
-  // ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
-  // ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
-
-  ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
-  ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
-  ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
-
-  if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
-    err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
-    err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
-  }
-  prev_omega_roll = stateAttitudeRateRoll;
-  prev_omega_pitch = stateAttitudeRatePitch;
-  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
-  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
-
+  // setting LOGGING param values
   // In degrees
   angVel_x = setpoint->attitudeRate.roll;
   angVel_y = setpoint->attitudeRate.pitch;
@@ -251,15 +238,55 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   rot_des_z = setpoint->velocity.x;
   rot_des_y = setpoint->velocity.y;
   rot_des_x = setpoint->velocity.z;
+  //
 
+
+
+  // Thrust calculation from angular acceleration (Z body frame direction) input
+  current_thrust = g_vehicleMass * setpoint->acceleration.z;
+  cmd_z_acc = setpoint->acceleration.z;
+  //
+
+  // Angular velocity Controller
+  // float err_d_roll = 0;
+  // float err_d_pitch = 0;
+
+  float stateAttitudeRateRoll = radians(sensors->gyro.x);
+  float stateAttitudeRatePitch = -radians(sensors->gyro.y);
+  float stateAttitudeRateYaw = radians(sensors->gyro.z);
+
+  // ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  // ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
+  // ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
+  ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
+  ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
+
+  // integral terms
+  i_error_omega_yaw += ew.z*dt;
+  i_error_omega_yaw = clamp(i_error_omega_yaw, -i_range_yaw, i_range_yaw);
+  i_error_omega_roll += ew.x * dt;
+  i_error_omega_roll = clamp(i_error_omega_roll, -i_range_roll, i_range_roll);
+  i_error_omega_pitch += ew.y * dt;
+  i_error_omega_pitch = clamp(i_error_omega_pitch, -i_range_pitch, i_range_pitch);
+
+  // if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
+  //   err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
+  //   err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
+  // }
+  prev_omega_roll = stateAttitudeRateRoll;
+  prev_omega_pitch = stateAttitudeRatePitch;
+  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
+  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
   // PD control for angular velocities
 
   // ----- remove D control
-  M.x = kw_xy * ew.x + 0.0f*kd_omega_rp * err_d_roll;
-  M.y = kw_xy * ew.y + 0.0f*kd_omega_rp * err_d_pitch;
-  M.z = kw_z  * ew.z;
+  M.x = kw_xy * ew.x + ki_w_x*i_error_omega_roll; 
+  M.y = kw_xy * ew.y + ki_w_y*i_error_omega_pitch;
+  M.z = kw_z  * ew.z + ki_w_z*i_error_omega_yaw;
 
-  // Output
+  // Sending values to the motor
   if (setpoint->mode.z == modeDisable) {
     control->thrust = setpoint->thrust;
   } else {
@@ -301,6 +328,10 @@ PARAM_ADD(PARAM_FLOAT, massThrust, &massThrust)
 PARAM_ADD(PARAM_FLOAT, kw_xy, &kw_xy)
 PARAM_ADD(PARAM_FLOAT, kw_z, &kw_z)
 PARAM_ADD(PARAM_FLOAT, kd_omega_rp, &kd_omega_rp)
+PARAM_ADD(PARAM_FLOAT, ki_w_z, &ki_w_z)
+PARAM_ADD(PARAM_FLOAT, ki_w_x, &ki_w_x)
+PARAM_ADD(PARAM_FLOAT, ki_w_y, &ki_w_y)
+
 PARAM_GROUP_STOP(ctrlRwik)
 
 LOG_GROUP_START(ctrlRwik)
@@ -338,5 +369,9 @@ LOG_ADD(LOG_FLOAT, ref_z, &ref_z)
 // LOG_ADD(LOG_FLOAT, rot_des_x, &rot_des_x)
 
 LOG_ADD(LOG_FLOAT, cmd_z_acc, &cmd_z_acc)
+
+// LOG_ADD(LOG_FLOAT, i_error_omega_roll, &i_error_omega_roll)
+// LOG_ADD(LOG_FLOAT, i_error_omega_pitch, &i_error_omega_pitch)
+// LOG_ADD(LOG_FLOAT, i_error_omega_yaw, &i_error_omega_yaw)
 
 LOG_GROUP_STOP(ctrlRwik)
