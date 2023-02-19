@@ -31,13 +31,13 @@ static float kw_xy = 20000; // D
 // Yaw
 // static float kR_z = 0.0; // P
 static float kw_z = 12000; // D
-static float ki_w_z = 500; // Integral term for the angular velocity controller.
-static float ki_w_x = 250;
-static float ki_w_y = 250;
+static float ki_w_z = 10000; // Integral term for the angular velocity controller.
+static float ki_w_x = 5000;
+static float ki_w_y = 5000;
 
-static float i_range_roll = 1000;
-static float i_range_pitch = 1000;
-static float i_range_yaw = 1000;
+static float i_range_roll = 10;
+static float i_range_pitch = 10;
+static float i_range_yaw = 10;
 // static float i_range_m_z  = 0.0;
 
 // roll and pitch angular velocity
@@ -98,6 +98,10 @@ static float rot_des_x;
 static float rot_des_y;
 static float rot_des_z;
 
+static float i_roll;
+static float i_pitch;
+static float i_yaw;
+
 
 void controllerRwikReset(void)
 {
@@ -132,7 +136,7 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   // struct vec target_thrust;
   // struct vec z_axis;
   float current_thrust;
-  float ew_z_integral;
+  // float ew_z_integral;
   // struct vec x_axis_desired;
   // struct vec y_axis_desired;
   // struct vec x_c_des;
@@ -272,6 +276,10 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   i_error_omega_pitch += ew.y * dt;
   i_error_omega_pitch = clamp(i_error_omega_pitch, -i_range_pitch, i_range_pitch);
 
+  i_roll = i_error_omega_roll;
+  i_pitch = i_error_omega_pitch;
+  i_yaw = i_error_omega_yaw;
+
   // if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
   //   err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
   //   err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
@@ -365,14 +373,14 @@ LOG_ADD(LOG_FLOAT, ref_x, &ref_x)
 LOG_ADD(LOG_FLOAT, ref_y, &ref_y)
 LOG_ADD(LOG_FLOAT, ref_z, &ref_z)
 
+LOG_ADD(LOG_FLOAT, i_roll, &i_roll)
+LOG_ADD(LOG_FLOAT, i_pitch, &i_pitch)
+LOG_ADD(LOG_FLOAT, i_yaw, &i_yaw)
+
 // LOG_ADD(LOG_FLOAT, rot_des_z, &rot_des_z)
 // LOG_ADD(LOG_FLOAT, rot_des_y, &rot_des_y)
 // LOG_ADD(LOG_FLOAT, rot_des_x, &rot_des_x)
 
 LOG_ADD(LOG_FLOAT, cmd_z_acc, &cmd_z_acc)
-
-// LOG_ADD(LOG_FLOAT, i_error_omega_roll, &i_error_omega_roll)
-// LOG_ADD(LOG_FLOAT, i_error_omega_pitch, &i_error_omega_pitch)
-// LOG_ADD(LOG_FLOAT, i_error_omega_yaw, &i_error_omega_yaw)
 
 LOG_GROUP_STOP(ctrlRwik)

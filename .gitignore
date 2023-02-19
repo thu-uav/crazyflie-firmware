@@ -12,6 +12,7 @@ tools/make/config.mk
 cflie.*
 version.c
 tags
+build/
 
 /cf2.*
 /tag.*
