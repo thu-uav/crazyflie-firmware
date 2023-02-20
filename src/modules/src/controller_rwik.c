@@ -276,23 +276,26 @@ void controllerRwik(control_t *control, setpoint_t *setpoint,
   i_error_omega_pitch += ew.y * dt;
   i_error_omega_pitch = clamp(i_error_omega_pitch, -i_range_pitch, i_range_pitch);
 
+  // for logging
   i_roll = i_error_omega_roll;
   i_pitch = i_error_omega_pitch;
   i_yaw = i_error_omega_yaw;
 
-  // if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
-  //   err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
-  //   err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
-  // }
+  // derivative terms
+
+  float err_d_roll = 0;
+  float err_d_pitch = 0;
+  if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
+    err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
+    err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
+  }
   prev_omega_roll = stateAttitudeRateRoll;
   prev_omega_pitch = stateAttitudeRatePitch;
-  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
-  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
-  // PD control for angular velocities
+  prev_setpoint_omega_roll = radians(setpoint->attitudeRate.roll);
+  prev_setpoint_omega_pitch = radians(setpoint->attitudeRate.pitch);
 
-  // ----- remove D control
-  M.x = kw_xy * ew.x + ki_w_x*i_error_omega_roll; 
-  M.y = kw_xy * ew.y + ki_w_y*i_error_omega_pitch;
+  M.x = kw_xy * ew.x + ki_w_x*i_error_omega_roll + kd_omega_rp*err_d_roll; 
+  M.y = kw_xy * ew.y + ki_w_y*i_error_omega_pitch + kd_omega_rp*err_d_pitch;
   M.z = kw_z  * ew.z + ki_w_z*i_error_omega_yaw;
 
   // Sending values to the motor
