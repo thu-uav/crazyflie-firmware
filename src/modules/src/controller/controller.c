@@ -7,6 +7,7 @@
 #include "controller_mellinger.h"
 #include "controller_indi.h"
 #include "controller_brescianini.h"
+#include "controller_nn.h"
 
 #include "autoconf.h"
 
@@ -26,6 +27,7 @@ static ControllerFcns controllerFunctions[] = {
   {.init = 0, .test = 0, .update = 0, .name = "None"}, // Any
   {.init = controllerPidInit, .test = controllerPidTest, .update = controllerPid, .name = "PID"},
   {.init = controllerMellingerFirmwareInit, .test = controllerMellingerFirmwareTest, .update = controllerMellingerFirmware, .name = "Mellinger"},
+  {.init = controllerNNInit, .test = controllerNNTest, .update = controllerNN},
   {.init = controllerINDIInit, .test = controllerINDITest, .update = controllerINDI, .name = "INDI"},
   {.init = controllerBrescianiniInit, .test = controllerBrescianiniTest, .update = controllerBrescianini, .name = "Brescianini"},
   #ifdef CONFIG_CONTROLLER_OOT
@@ -49,6 +51,8 @@ void controllerInit(ControllerType controller) {
     #define CONTROLLER ControllerTypePID
   #elif defined(CONFIG_CONTROLLER_INDI)
     #define CONTROLLER ControllerTypeINDI
+  #elif defined(CONFIG_CONTROLLER_NN)
+    #define CONTROLLER ControllerTypeNN
   #elif defined(CONFIG_CONTROLLER_MELLINGER)
     #define CONTROLLER ControllerTypeMellinger
   #elif defined(CONFIG_CONTROLLER_BRESCIANINI)

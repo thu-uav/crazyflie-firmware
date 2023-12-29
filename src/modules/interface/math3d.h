@@ -399,7 +399,27 @@ static inline struct mat33 mcrossmat(struct vec v) {
 	m.m[2][2] = 0;
 	return m;
 }
-
+// multiply a matrix by a vector.
+static inline struct vec mvmult(struct mat33 a, struct vec v) {
+	float x = a.m[0][0] * v.x + a.m[0][1] * v.y + a.m[0][2] * v.z;
+	float y = a.m[1][0] * v.x + a.m[1][1] * v.y + a.m[1][2] * v.z;
+	float z = a.m[2][0] * v.x + a.m[2][1] * v.y + a.m[2][2] * v.z;
+	return mkvec(x, y, z);
+}
+// multiply two matrices.
+static inline struct mat33 mmult(struct mat33 a, struct mat33 b) {
+	struct mat33 ab;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			float accum = 0;
+			for (int k = 0; k < 3; ++k) {
+				accum += a.m[i][k] * b.m[k][j];
+			}
+			ab.m[i][j] = accum;
+		}
+	}
+	return ab;
+}
 //
 // accessors
 //

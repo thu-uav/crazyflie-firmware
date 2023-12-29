@@ -42,6 +42,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "controller_nn.h"
 
 #define BIGQUAD_BAT_VOLT_PIN       DECK_GPIO_MISO
 #define BIGQUAD_BAT_VOLT_MULT      (CONFIG_DECK_BIGQUAD_BAT_VOLT_MULT_MV / 1000.0)
@@ -86,7 +87,7 @@ static void bigquadInit(DeckInfo *info)
 
   // Ignore charging/charged state to allow low-battery warning.
   pmIgnoreChargedState(true);
-
+  controllerNNEnableBigQuad();
 #ifdef CONFIG_DECK_BIGQUAD_ENABLE_PM
   pmEnableExtBatteryVoltMeasuring(BIGQUAD_BAT_VOLT_PIN, BIGQUAD_BAT_VOLT_MULT);
   pmEnableExtBatteryCurrMeasuring(BIGQUAD_BAT_CURR_PIN, BIGQUAD_BAT_AMP_PER_VOLT);

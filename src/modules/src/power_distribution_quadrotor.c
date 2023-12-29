@@ -113,7 +113,10 @@ static void powerDistributionForceTorque(const control_t *control, motors_thrust
 }
 
 static void powerDistributionForce(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped) {
-  // Not implemented yet
+  motorThrustUncapped->motors.m1 = control->normalizedForces[0];
+  motorThrustUncapped->motors.m2 = control->normalizedForces[1];
+  motorThrustUncapped->motors.m3 = control->normalizedForces[2];
+  motorThrustUncapped->motors.m4 = control->normalizedForces[3];
 }
 
 void powerDistribution(const control_t *control, motors_thrust_uncapped_t* motorThrustUncapped)

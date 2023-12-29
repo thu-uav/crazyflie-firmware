@@ -32,6 +32,7 @@ typedef enum {
   ControllerTypeAutoSelect,
   ControllerTypePID,
   ControllerTypeMellinger,
+  ControllerTypeNN,
   ControllerTypeINDI,
   ControllerTypeBrescianini,
 #ifdef CONFIG_CONTROLLER_OOT
